@@ -1,0 +1,10 @@
+.git
+.delivery-workflow
+.env
+data
+node_modules
+tests
+test-results
+playwright-report
+docs
+*.log

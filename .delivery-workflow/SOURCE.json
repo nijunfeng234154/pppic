@@ -1,0 +1,9 @@
+{
+  "repository": "https://github.com/zhaoxuya520/AI-Fullstack-Delivery-Workflow.git",
+  "branch": "master",
+  "archive_commit_prefix": "ab96b89",
+  "acquired_on": "2026-11-20",
+  "method": "GitHub API tarball",
+  "includes_git_history": false,
+  "reason": "git clone network access and escalation were unavailable in the managed workspace"
+}
