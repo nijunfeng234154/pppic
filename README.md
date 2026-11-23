@@ -10,6 +10,65 @@
 - 本地磁盘和 S3 兼容存储（AWS S3、R2、MinIO 等）；S3 使用私有桶，通过图床转发原图。
 - Docker Compose、健康检查、OpenAPI 规范和自动化测试。
 
+## Docker Compose 部署（推荐）
+
+服务器需要安装 Docker Engine 和 Docker Compose v2（容器编排工具），无需安装 Node.js 或 npm 依赖。仓库使用根目录的 `Dockerfile` 和 `docker-compose.yaml` 构建并启动服务。
+
+```bash
+git clone https://github.com/nijunfeng234154/pppic.git
+cd pppic
+# 仅首次创建；已有 .env 时直接编辑，避免覆盖
+cp -n .env.example .env
+docker compose -f docker-compose.yaml up -d --build --wait
+docker compose -f docker-compose.yaml ps
+curl --fail http://localhost:3333/healthz
+```
+
+在部署主机打开 **http://localhost:3333**。首次启动自动生成管理口令，仅在自己的终端查看：
+
+```bash
+docker compose -f docker-compose.yaml exec pppic cat /app/data/admin-token
+```
+
+如果设置了 `ADMIN_TOKEN`，使用该值登录，不会生成上述文件。口令需为 24–512 个无空白字符。容器以非 root 用户运行，使用只读根文件系统、512 MiB 内存上限、1 CPU 上限和日志轮转；镜像内置 `/healthz` 健康检查。健康检查用于报告状态，进程退出时由重启策略重启，健康检查失败本身不会自动重启容器。
+
+### 部署配置
+
+编辑 `.env` 后重新执行 `docker compose -f docker-compose.yaml up -d --build --wait`：
+
+| 配置 | 默认值 | 用途 |
+| --- | --- | --- |
+| `PORT` | `3333` | 主机端口，容器内部始终为 3333 |
+| `PUBLIC_URL` | `http://localhost:3333` | 实际浏览器访问的源地址，同时用于分享链接和来源校验 |
+| `ADMIN_TOKEN` | 留空 | 首次自动生成并保存到数据卷，也可自行设置 |
+| `MAX_UPLOAD_MB` | `20` | 单张图片上限，单位 MiB |
+| `STORAGE_LIMIT_MB` | `10240` | 图片存储配额，单位 MiB |
+| `COOKIE_SECURE` | `false` | HTTPS 部署设置为 `true` |
+| `STORAGE_DRIVER` | `local` | `local` 本地磁盘或 `s3` 对象存储 |
+
+默认端口仅绑定主机 `127.0.0.1`。公网部署请用 Nginx 等反向代理转发至 `127.0.0.1:3333`，将 `PUBLIC_URL` 改为实际 HTTPS 域名（例如 `https://img.example.com`），并设置 `COOKIE_SECURE=true`。在远程服务器上测试时，也可通过 SSH 端口转发访问。完整反向代理示例见[部署与回滚](docs/部署与回滚.md)。
+
+修改 `PORT` 时同步修改 `.env` 中的 `PUBLIC_URL`；不提供 `PUBLIC_URL` 时 Compose 会按 `PORT` 生成 localhost 地址。`.env` 中 `HOST`、`DATA_DIR` 用于本地 Node 启动；容器固定使用 `0.0.0.0` 和 `/app/data`。
+
+启用 S3 时设置 `STORAGE_DRIVER=s3`，并填写 `S3_ENDPOINT`、`S3_REGION`、`S3_BUCKET`、`S3_ACCESS_KEY_ID`、`S3_SECRET_ACCESS_KEY`。使用专用私有桶；SQLite 元数据仍保存在本地数据卷，切换驱动不会自动迁移已有图片。
+
+### 日常运维
+
+```bash
+# 查看日志
+docker compose -f docker-compose.yaml logs --tail=100 -f pppic
+# 重启
+docker compose -f docker-compose.yaml restart pppic
+# 更新前先按部署文档备份数据并记录当前提交
+git rev-parse HEAD
+git pull --ff-only
+docker compose -f docker-compose.yaml up -d --build --wait
+# 停止并移除容器，保留数据卷
+docker compose -f docker-compose.yaml down
+```
+
+图片、SQLite 和自动生成的管理口令保存在项目数据卷 `pppic_data`（实际名称带 Compose 项目前缀）。部署目录或项目名应保持稳定，以免误用新卷。**不要执行 `docker compose down -v`，它会删除数据卷。** 完整备份、恢复与回滚步骤见[部署与回滚](docs/部署与回滚.md)。
+
 ## 本地启动
 
 需要 **Node.js 24.x**。运行服务不需要安装 npm 包：
@@ -107,7 +166,7 @@ pnpm test:e2e
 - [测试与验收报告](docs/测试与验收报告.md)
 - [交付经验](docs/交付经验.md)
 
-本项目按 [AI-Fullstack-Delivery-Workflow](https://github.com/zhaoxuya520/AI-Fullstack-Delivery-Workflow) 的产品 → 全栈 → QA → 部署准备 → 文档链路交付。上游源码快照保存在 `.delivery-workflow/`。由于环境的 Git 网络和元数据写入限制，本次未获取上游 Git 历史、未初始化或提交当前项目。
+本项目按 [AI-Fullstack-Delivery-Workflow](https://github.com/zhaoxuya520/AI-Fullstack-Delivery-Workflow) 的产品 → 全栈 → QA → 部署准备 → 文档链路交付。上游源码快照保存在 `.delivery-workflow/`。部署验证状态见[测试与验收报告](docs/测试与验收报告.md)。
 
 ## 当前边界
 

@@ -1,14 +1,17 @@
 services:
   pppic:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     init: true
     restart: unless-stopped
+    stop_grace_period: 30s
     ports:
       - "127.0.0.1:${PORT:-3333}:3333"
     environment:
       HOST: 0.0.0.0
       PORT: 3333
-      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3333}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:${PORT:-3333}}
       DATA_DIR: /app/data
       ADMIN_TOKEN: ${ADMIN_TOKEN:-}
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-20}
@@ -29,6 +32,7 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
+    cpus: 1.0
     mem_limit: 512m
     logging:
       driver: json-file

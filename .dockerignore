@@ -8,3 +8,7 @@ test-results
 playwright-report
 docs
 *.log
+
+# 部署备份及 Git 离线备份不进入仓库或镜像
+backups/
+*.bundle
